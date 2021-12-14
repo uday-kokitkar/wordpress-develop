@@ -276,6 +276,19 @@ function form_option( $option ) {
 function wp_load_alloptions( $force_cache = false ) {
 	global $wpdb;
 
+	/**
+	 * Filters all options before loading them.
+	 *
+	 * @since 6.0.0
+	 *
+	 * @param mixed $pre Array with all options.
+	 * @param bool $force_cache Whether to force an update of the local cache from the persistent cache. Default false.
+	 */
+	$pre = apply_filters( 'pre_get_alloptions', null, $force_cache );
+	if ( null !== $pre ) {
+		return $pre;
+	}
+
 	if ( ! wp_installing() || ! is_multisite() ) {
 		$alloptions = wp_cache_get( 'alloptions', 'options', $force_cache );
 	} else {
