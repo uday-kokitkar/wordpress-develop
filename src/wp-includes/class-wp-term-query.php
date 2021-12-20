@@ -90,6 +90,7 @@ class WP_Term_Query {
 	 * @since 4.9.0 Added 'slug__in' support for 'orderby'.
 	 * @since 5.1.0 Introduced the 'meta_compare_key' parameter.
 	 * @since 5.3.0 Introduced the 'meta_type_key' parameter.
+	 * @since 6.0.0 Introduced 'update_get_terms_cache' parameter.
 	 *
 	 * @param string|array $query {
 	 *     Optional. Array or query string of term query parameters. Default empty.
@@ -190,6 +191,7 @@ class WP_Term_Query {
 	 *                                                   See WP_Meta_Query::__construct for accepted values and default value.
 	 *     @type array           $meta_query             An associative array of WP_Meta_Query arguments.
 	 *                                                   See WP_Meta_Query::__construct for accepted values.
+
 	 * }
 	 */
 	public function __construct( $query = '' ) {
@@ -219,6 +221,7 @@ class WP_Term_Query {
 			'parent'                 => '',
 			'childless'              => false,
 			'cache_domain'           => 'core',
+			'update_get_terms_cache' => true,
 			'update_term_meta_cache' => true,
 			'meta_query'             => '',
 			'meta_key'               => '',
@@ -742,11 +745,16 @@ class WP_Term_Query {
 			return $this->terms;
 		}
 
-		// $args can be anything. Only use the args defined in defaults to compute the key.
-		$key          = md5( serialize( wp_array_slice_assoc( $args, array_keys( $this->query_var_defaults ) ) ) . serialize( $taxonomies ) . $this->request );
-		$last_changed = wp_cache_get_last_changed( 'terms' );
-		$cache_key    = "get_terms:$key:$last_changed";
-		$cache        = wp_cache_get( $cache_key, 'terms' );
+		$cache_key = false;
+
+		if ( ! empty( $args['update_get_terms_cache'] ) ) {
+			// $args can be anything. Only use the args defined in defaults to compute the key.
+			$key          = md5( serialize( wp_array_slice_assoc( $args, array_keys( $this->query_var_defaults ) ) ) . serialize( $taxonomies ) . $this->request );
+			$last_changed = wp_cache_get_last_changed( 'terms' );
+			$cache_key    = "get_terms:$key:$last_changed";
+		}
+
+		$cache = $cache_key ? wp_cache_get( $cache_key, 'terms' ) : false;
 		if ( false !== $cache ) {
 			if ( 'all' === $_fields || 'all_with_object_id' === $_fields ) {
 				$cache = $this->populate_terms( $cache );
@@ -758,7 +766,9 @@ class WP_Term_Query {
 
 		if ( 'count' === $_fields ) {
 			$count = $wpdb->get_var( $this->request );
-			wp_cache_set( $cache_key, $count, 'terms' );
+			if ( $cache_key ) {
+				wp_cache_set( $cache_key, $count, 'terms' );
+			}
 			return $count;
 		}
 
@@ -775,7 +785,9 @@ class WP_Term_Query {
 		}
 
 		if ( empty( $terms ) ) {
-			wp_cache_add( $cache_key, array(), 'terms', DAY_IN_SECONDS );
+			if ( $cache_key ) {
+				wp_cache_add( $cache_key, array(), 'terms' );
+			}
 			return array();
 		}
 
@@ -880,7 +892,9 @@ class WP_Term_Query {
 			}
 		}
 
-		wp_cache_add( $cache_key, $terms, 'terms', DAY_IN_SECONDS );
+		if ( $cache_key ) {
+			wp_cache_add( $cache_key, $terms, 'terms' );
+		}
 
 		if ( 'all' === $_fields || 'all_with_object_id' === $_fields ) {
 			$terms = $this->populate_terms( $terms );
