@@ -767,7 +767,7 @@ class WP_Term_Query {
 		if ( 'count' === $_fields ) {
 			$count = $wpdb->get_var( $this->request );
 			if ( $cache_key ) {
-				wp_cache_set( $cache_key, $count, 'terms' );
+				wp_cache_set( $cache_key, $count, 'terms', DAY_IN_SECONDS );
 			}
 			return $count;
 		}
@@ -893,7 +893,7 @@ class WP_Term_Query {
 		}
 
 		if ( $cache_key ) {
-			wp_cache_add( $cache_key, $terms, 'terms' );
+			wp_cache_add( $cache_key, $terms, 'terms', DAY_IN_SECONDS );
 		}
 
 		if ( 'all' === $_fields || 'all_with_object_id' === $_fields ) {
